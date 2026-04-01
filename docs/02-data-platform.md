@@ -249,10 +249,14 @@ In Superset: **Settings → Database Connections → + Database**
 - Database: `Trino`
 - SQLAlchemy URI:
   ```
-  trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive?http_scheme=https&verify=false
+  trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive
+  ```
+- Open the **Advanced** tab → **Other** → **Engine Parameters**, paste:
+  ```json
+  {"connect_args": {"http_scheme": "https", "verify": false}}
   ```
 
-  > `http_scheme=https` is required — the trino SQLAlchemy dialect defaults to HTTP, which causes a TLS handshake error on port 8443.
+  > The trino SQLAlchemy dialect ignores `http_scheme` when set as a URI query parameter — it must be passed as a `connect_arg`.
 
 ### Starting port-forwards
 
