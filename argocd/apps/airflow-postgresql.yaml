@@ -17,8 +17,7 @@ spec:
   project: data-platform
 
   source:
-    repoURL: oci://registry-1.docker.io/bitnamicharts
-    chart: postgresql
+    repoURL: oci://registry-1.docker.io/bitnamicharts/postgresql
     targetRevision: 16.5.0
     helm:
       releaseName: airflow-postgresql

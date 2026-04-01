@@ -17,8 +17,7 @@ spec:
   project: data-platform
 
   source:
-    repoURL: oci://registry-1.docker.io/bitnamicharts
-    chart: redis
+    repoURL: oci://registry-1.docker.io/bitnamicharts/redis
     targetRevision: 20.11.3
     helm:
       releaseName: airflow-redis
