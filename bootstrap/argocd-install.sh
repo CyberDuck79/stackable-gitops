@@ -29,13 +29,12 @@ kubectl -n "${ARGOCD_NAMESPACE}" patch svc argocd-server \
   -p '{"spec":{"type":"NodePort","ports":[{"name":"http","port":80,"nodePort":30080},{"name":"https","port":443,"nodePort":30443}]}}'
 
 echo "==> Enabling OCI Helm support in ArgoCD..."
-# ArgoCD's repo-server wraps the Helm CLI but does not pass --enable-oci by default.
-# Without this flag, any source with repoURL starting with oci:// is rejected.
-# The Stackable operator charts live at oci://oci.stackable.tech/sdp-charts/...
-# so this is mandatory.
+# repoURL for OCI Helm charts must NOT include the oci:// scheme prefix.
+# ArgoCD v2.x requires the repo-server to be started with --enable-helm-oci,
+# which maps to reposerver.enable.helm.oci in argocd-cmd-params-cm.
 kubectl -n "${ARGOCD_NAMESPACE}" patch configmap argocd-cmd-params-cm \
   --type merge \
-  -p '{"data":{"helm.enable-oci":"true"}}'
+  -p '{"data":{"reposerver.enable.helm.oci":"true"}}'
 
 echo "==> Restarting repo-server to pick up config changes..."
 kubectl -n "${ARGOCD_NAMESPACE}" rollout restart deployment argocd-repo-server
