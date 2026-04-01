@@ -24,12 +24,11 @@ nodes:
       - containerPort: 30443
         hostPort: 30443
         protocol: TCP
-      # Airflow webserver — NodePort auto-assigned by Stackable operator.
-      # If the port changes after cluster recreation, update this value to match
-      # `kubectl -n data-platform get svc airflow-webserver -o jsonpath='{.spec.ports[0].nodePort}'`
-      # then recreate the cluster again.
-      - containerPort: 31800
-        hostPort: 31800
+      # Airflow webserver — NodePort assigned by the Stackable listener operator.
+      # Value observed from a running cluster; if it differs after recreation, update
+      # this file and run: kind delete cluster --name stackable && kind create cluster ...
+      - containerPort: 31873
+        hostPort: 31873
         protocol: TCP
       # MinIO S3 API — pinned to 32000 in argocd/apps/minio.yaml
       - containerPort: 32000
@@ -39,13 +38,13 @@ nodes:
       - containerPort: 32001
         hostPort: 32001
         protocol: TCP
-      # Superset — NodePort auto-assigned by Stackable operator (see note above)
-      - containerPort: 32600
-        hostPort: 32600
+      # Superset — NodePort assigned by the Stackable listener operator (see note above)
+      - containerPort: 32645
+        hostPort: 32645
         protocol: TCP
-      # Trino coordinator HTTPS — NodePort auto-assigned by Stackable operator (see note above)
-      - containerPort: 30900
-        hostPort: 30900
+      # Trino coordinator HTTPS — NodePort assigned by the Stackable listener operator (see note above)
+      - containerPort: 30437
+        hostPort: 30437
         protocol: TCP
 
   - role: worker
