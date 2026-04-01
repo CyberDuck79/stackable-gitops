@@ -199,15 +199,10 @@ hive-metastore-default   1/1     3m
 kubectl -n data-platform get statefulset \
   airflow-webserver-default \
   airflow-scheduler-default \
-  airflow-celery-executor-default
+  airflow-worker-default
 ```
 
-Access the Airflow UI (port-forward):
-
-```bash
-kubectl -n data-platform port-forward svc/airflow-webserver 8080:8080
-open http://localhost:8080
-```
+Access the Airflow UI at <http://localhost:8080> (start port-forwards first — see below).
 
 Log in with the credentials you set in `secrets-templates/airflow-credentials.yaml`.
 
@@ -219,12 +214,7 @@ kubectl -n data-platform get statefulset \
   trino-worker-default
 ```
 
-Access the Trino UI:
-
-```bash
-kubectl -n data-platform port-forward svc/trino-coordinator 8443:8443
-open https://localhost:8443/ui
-```
+Access the Trino UI at <https://localhost:8443/ui> (start port-forwards first — see below).
 
 Log in with username `admin` (no password required — no auth configured in this getting-started setup).
 
@@ -248,12 +238,7 @@ Expected output includes `hive` and `system`.
 kubectl -n data-platform get statefulset superset-node-default
 ```
 
-Access Superset:
-
-```bash
-kubectl -n data-platform port-forward svc/superset-node 8088:8088
-open http://localhost:8088
-```
+Access Superset at <http://localhost:8088> (start port-forwards first — see below).
 
 Log in with the credentials you set in `secrets-templates/superset-credentials.yaml`.
 
@@ -266,6 +251,20 @@ In Superset: **Settings → Database Connections → + Database**
   ```
   trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive?verify=false
   ```
+
+### Starting port-forwards
+
+All services above are exposed via `kubectl port-forward`. Run the helper script once to start them all in the background:
+
+```bash
+bash scripts/port-forward.sh
+```
+
+To stop:
+
+```bash
+bash scripts/port-forward.sh stop
+```
 
 ---
 
@@ -288,7 +287,7 @@ When you need to rotate or add a secret:
 | Airflow | <http://localhost:8080> | airflow / airflow |
 | Trino UI | <https://localhost:8443/ui> | admin / (none) |
 | Superset | <http://localhost:8088> | admin / admin |
-| MinIO Console | NodePort (see `kubectl -n data-platform get svc minio-console`) | minio-root / minio-root-password |
+| MinIO Console | <https://localhost:9001> | minio-root / minio-root-password |
 
 ---
 
