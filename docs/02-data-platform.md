@@ -202,7 +202,12 @@ kubectl -n data-platform get statefulset \
   airflow-celery-executor-default
 ```
 
-Access the Airflow UI at <http://localhost:31873>.
+Access the Airflow UI (port-forward):
+
+```bash
+kubectl -n data-platform port-forward svc/airflow-webserver 8080:8080
+open http://localhost:8080
+```
 
 Log in with the credentials you set in `secrets-templates/airflow-credentials.yaml`.
 
@@ -214,7 +219,12 @@ kubectl -n data-platform get statefulset \
   trino-worker-default
 ```
 
-Access the Trino UI at <https://localhost:30437/ui>.
+Access the Trino UI:
+
+```bash
+kubectl -n data-platform port-forward svc/trino-coordinator 8443:8443
+open https://localhost:8443/ui
+```
 
 Log in with username `admin` (no password required — no auth configured in this getting-started setup).
 
@@ -226,7 +236,7 @@ curl --fail -o trino.jar \
   https://repo.stackable.tech/repository/packages/trino-cli/trino-cli-479
 chmod +x trino.jar
 
-./trino.jar --insecure --server https://localhost:30437 --user admin \
+./trino.jar --insecure --server https://localhost:8443 --user admin \
   --execute "SHOW CATALOGS"
 ```
 
@@ -238,7 +248,12 @@ Expected output includes `hive` and `system`.
 kubectl -n data-platform get statefulset superset-node-default
 ```
 
-Access Superset at <http://localhost:32645>.
+Access Superset:
+
+```bash
+kubectl -n data-platform port-forward svc/superset-node 8088:8088
+open http://localhost:8088
+```
 
 Log in with the credentials you set in `secrets-templates/superset-credentials.yaml`.
 
@@ -249,7 +264,7 @@ In Superset: **Settings → Database Connections → + Database**
 - Database: `Trino`
 - SQLAlchemy URI:
   ```
-  trino://admin@localhost:30437/hive?verify=false
+  trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive?verify=false
   ```
 
 ---
@@ -267,18 +282,13 @@ When you need to rotate or add a secret:
 
 ## Component reference
 
-| Component | URL | Default credentials |
-|-----------|-----|---------------------|
+| Component | URL (port-forward) | Default credentials |
+|-----------|-------------------|---------------------|
 | ArgoCD | <http://localhost:30080> | admin / *see bootstrap output* |
-| Airflow | <http://localhost:31873> | airflow / airflow |
-| Trino UI | <https://localhost:30437/ui> | admin / (none) |
-| Superset | <http://localhost:32645> | admin / admin |
-| MinIO Console | <https://localhost:32001> | minio-root / minio-root-password |
-
-> **Note:** Airflow (31873), Superset (32645), and Trino (30437) NodePorts are assigned by the
-> Stackable listener operator at deploy time. If they differ after a cluster recreation, check
-> the actual values with `kubectl -n data-platform get svc airflow-webserver superset-node trino-coordinator`,
-> update `bootstrap/kind-config.yaml` to match, and recreate the cluster once more.
+| Airflow | <http://localhost:8080> | airflow / airflow |
+| Trino UI | <https://localhost:8443/ui> | admin / (none) |
+| Superset | <http://localhost:8088> | admin / admin |
+| MinIO Console | NodePort (see `kubectl -n data-platform get svc minio-console`) | minio-root / minio-root-password |
 
 ---
 
