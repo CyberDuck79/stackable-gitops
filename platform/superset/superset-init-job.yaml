@@ -1,0 +1,151 @@
+---
+# Superset init — registers the Trino database connection and, if the
+# taxi_pipeline DAG has already been run, also creates the taxi_summary dataset.
+#
+# This is an ArgoCD PostSync hook: it runs automatically after each sync of the
+# 'superset' app and is deleted on success. It is fully idempotent.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: superset-init-script
+  namespace: data-platform
+data:
+  init.py: |
+    #!/usr/bin/env python3
+    """
+    Idempotent Superset seed:
+      1. Wait for Superset to be healthy.
+      2. Create the Trino database connection (skip if already present).
+      3. Attempt to register the taxi_summary dataset (warns and continues
+         if the table does not exist yet — run the taxi_pipeline DAG first).
+    """
+    import json
+    import sys
+    import time
+    import urllib.error
+    import urllib.request
+
+    SUPERSET = "http://superset-node.data-platform.svc.cluster.local:8088"
+    TRINO_URI = (
+        "trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive"
+    )
+    DB_NAME = "Trino – Hive"
+
+
+    def call(method, path, body=None, token=None):
+        url = f"{SUPERSET}/api/v1{path}"
+        data = json.dumps(body).encode() if body is not None else None
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"HTTP {exc.code} {method} {path}: {detail}") from exc
+
+
+    def wait_for_superset(retries=30, delay=10):
+        for attempt in range(1, retries + 1):
+            try:
+                urllib.request.urlopen(f"{SUPERSET}/health", timeout=5)
+                print("Superset is healthy.")
+                return
+            except Exception as exc:
+                print(f"[{attempt}/{retries}] Waiting for Superset… ({exc})")
+                time.sleep(delay)
+        print("ERROR: Superset did not become ready.", file=sys.stderr)
+        sys.exit(1)
+
+
+    def main():
+        wait_for_superset()
+
+        # Login
+        resp = call("POST", "/security/login", {
+            "username": "admin",
+            "password": "admin",
+            "provider": "db",
+            "refresh": True,
+        })
+        token = resp["access_token"]
+        print("Logged in.")
+
+        # Database connection (idempotent)
+        dbs = call("GET", "/database/?q=(page_size:100)", token=token)["result"]
+        existing = next((d for d in dbs if d["database_name"] == DB_NAME), None)
+        if existing:
+            db_id = existing["id"]
+            print(f"Database '{DB_NAME}' already exists (id={db_id}), skipping.")
+        else:
+            resp = call("POST", "/database/", {
+                "database_name": DB_NAME,
+                "sqlalchemy_uri": TRINO_URI,
+                "extra": json.dumps({
+                    "connect_args": {"http_scheme": "https", "verify": False},
+                }),
+                "expose_in_sqllab": True,
+            }, token=token)
+            db_id = resp["id"]
+            print(f"Created database '{DB_NAME}' (id={db_id}).")
+
+        # taxi_summary dataset (idempotent — skips gracefully if table missing)
+        datasets = call("GET", "/dataset/?q=(page_size:100)", token=token)["result"]
+        ds = next((d for d in datasets if d["table_name"] == "taxi_summary"), None)
+        if ds:
+            print(f"Dataset 'taxi_summary' already exists (id={ds['id']}), skipping.")
+        else:
+            try:
+                resp = call("POST", "/dataset/", {
+                    "database": db_id,
+                    "schema": "mart",
+                    "table_name": "taxi_summary",
+                }, token=token)
+                print(f"Created dataset 'taxi_summary' (id={resp['id']}).")
+            except RuntimeError as exc:
+                print(
+                    f"WARNING: Could not register dataset — "
+                    f"the taxi_pipeline DAG may not have run yet.\n  {exc}\n"
+                    "Re-sync the 'superset' app in ArgoCD after running the DAG."
+                )
+
+        print("Superset initialization complete.")
+
+
+    if __name__ == "__main__":
+        main()
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: superset-init
+  namespace: data-platform
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: script
+          configMap:
+            name: superset-init-script
+      containers:
+        - name: superset-init
+          image: python:3.11-slim
+          command: ["python3", "/scripts/init.py"]
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"

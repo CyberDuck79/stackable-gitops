@@ -14,6 +14,12 @@ spec:
     loadExamples: false
     exposeConfig: false
     credentialsSecret: airflow-credentials
+    dagsGitSync:
+      - repo: https://github.com/CyberDuck79/stackable-gitops
+        branch: main
+        gitFolder: dags
+        depth: 1
+        wait: 20s
   webservers:
     roleConfig:
       listenerClass: external-unstable

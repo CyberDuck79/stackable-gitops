@@ -7,3 +7,4 @@ namespace: data-platform
 resources:
   - credentials-sealed-secret.yaml
   - superset-cluster.yaml
+  - superset-init-job.yaml
