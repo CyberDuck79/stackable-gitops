@@ -1,0 +1,33 @@
+---
+# Trino stacklet — TrinoCluster with a Hive catalog pointing at MinIO.
+# Wave 1: deployed after Hive (wave -1) is available, because the
+# TrinoCatalog references the Hive metastore service discovery ConfigMap.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trino
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    # ⚠ Replace with your actual fork/clone URL
+    repoURL: https://github.com/CyberDuck79/stackable-gitops.git
+    targetRevision: HEAD
+    path: platform/trino
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

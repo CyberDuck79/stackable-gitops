@@ -1,0 +1,60 @@
+---
+# Redis for Airflow — job queue for the Celery executor.
+# Wave -2: infrastructure layer, deployed after operators are ready.
+#
+# ⚠ Credentials below are for local development only.
+#   For production, use Sealed Secrets or an external secret manager.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airflow-redis
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    repoURL: oci://registry-1.docker.io/bitnamicharts
+    chart: redis
+    targetRevision: 20.11.3
+    helm:
+      releaseName: airflow-redis
+      valuesObject:
+        image:
+          repository: bitnamilegacy/redis
+        sentinel:
+          image:
+            repository: bitnamilegacy/redis-sentinel
+        metrics:
+          image:
+            repository: bitnamilegacy/redis-exporter
+        volumePermissions:
+          image:
+            repository: bitnamilegacy/os-shell
+        kubectl:
+          image:
+            repository: bitnamilegacy/kubectl
+        sysctl:
+          image:
+            repository: bitnamilegacy/os-shell
+        global:
+          security:
+            allowInsecureImages: true
+        replica:
+          replicaCount: 1
+        auth:
+          password: redis  # change for production
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

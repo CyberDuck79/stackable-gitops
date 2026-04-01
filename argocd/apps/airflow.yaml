@@ -1,0 +1,32 @@
+---
+# Airflow stacklet — AirflowCluster with Celery executors.
+# Wave 0: deployed after infrastructure (PostgreSQL + Redis) is ready.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airflow
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    # ⚠ Replace with your actual fork/clone URL
+    repoURL: https://github.com/CyberDuck79/stackable-gitops.git
+    targetRevision: HEAD
+    path: platform/airflow
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

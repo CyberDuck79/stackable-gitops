@@ -1,0 +1,41 @@
+---
+# TrinoCluster — distributed SQL query engine.
+# The catalogLabelSelector links this cluster to TrinoCatalog resources
+# that have the label 'trino: trino'.
+apiVersion: trino.stackable.tech/v1alpha1
+kind: TrinoCluster
+metadata:
+  name: trino
+  namespace: data-platform
+spec:
+  image:
+    productVersion: "479"
+    pullPolicy: IfNotPresent
+  clusterConfig:
+    catalogLabelSelector:
+      matchLabels:
+        trino: trino
+  coordinators:
+    roleConfig:
+      listenerClass: external-unstable
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu:
+              min: "300m"
+              max: "1500m"
+            memory:
+              limit: "2Gi"
+  workers:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu:
+              min: "300m"
+              max: "1500m"
+            memory:
+              limit: "2Gi"

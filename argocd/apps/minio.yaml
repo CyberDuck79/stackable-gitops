@@ -1,0 +1,58 @@
+---
+# MinIO — S3-compatible object storage for the Hive metastore.
+# Wave -2: infrastructure layer, deployed after operators are ready.
+#
+# ⚠ Credentials below are for local development only.
+#   For production, use Sealed Secrets or an external secret manager.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    repoURL: https://charts.min.io/
+    chart: minio
+    targetRevision: 5.4.0
+    helm:
+      releaseName: minio
+      valuesObject:
+        mode: standalone
+        replicas: 1
+        persistence:
+          enabled: false
+        resources:
+          requests:
+            memory: 1Gi
+        rootUser: minio-root
+        rootPassword: minio-root-password  # change for production
+        buckets:
+          - name: hive
+            policy: none
+        users:
+          - accessKey: hive
+            secretKey: hive-secret-key  # change for production
+            policy: readwrite
+        service:
+          type: NodePort
+          nodePort: null
+        consoleService:
+          type: NodePort
+          nodePort: null
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

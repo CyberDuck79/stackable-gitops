@@ -1,0 +1,31 @@
+---
+# Stackable Superset Operator — manages SupersetCluster custom resources.
+# Wave -3: installed after the core operators (wave -4).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: stackable-superset-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    repoURL: oci://oci.stackable.tech/sdp-charts
+    chart: superset-operator
+    targetRevision: 26.3.0
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: stackable-operators
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

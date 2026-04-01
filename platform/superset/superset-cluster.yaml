@@ -1,0 +1,29 @@
+---
+# SupersetCluster — data exploration and visualization platform.
+# Dependencies: superset-postgresql (in data-platform ns).
+apiVersion: superset.stackable.tech/v1alpha1
+kind: SupersetCluster
+metadata:
+  name: superset
+  namespace: data-platform
+spec:
+  image:
+    productVersion: "6.0.0"
+    pullPolicy: IfNotPresent
+  clusterConfig:
+    credentialsSecret: superset-credentials
+  nodes:
+    roleConfig:
+      listenerClass: external-unstable
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          rowLimit: 10000
+          webserverTimeout: 300
+          resources:
+            cpu:
+              min: "300m"
+              max: "1500m"
+            memory:
+              limit: "1Gi"

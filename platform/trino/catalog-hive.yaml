@@ -1,0 +1,17 @@
+---
+# TrinoCatalog — Hive connector backed by the Hive metastore and MinIO.
+# The label 'trino: trino' must match the TrinoCluster's catalogLabelSelector.
+apiVersion: trino.stackable.tech/v1alpha1
+kind: TrinoCatalog
+metadata:
+  name: hive
+  namespace: data-platform
+  labels:
+    trino: trino
+spec:
+  connector:
+    hive:
+      metastore:
+        configMap: hive  # name of the HiveCluster (its service-discovery ConfigMap)
+      s3:
+        reference: minio  # name of the S3Connection

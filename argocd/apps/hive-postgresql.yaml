@@ -1,0 +1,57 @@
+---
+# PostgreSQL for Hive Metastore — stores table and partition metadata.
+# Wave -2: infrastructure layer, deployed after operators are ready.
+#
+# ⚠ Credentials below are for local development only.
+#   For production, use Sealed Secrets or an external secret manager.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hive-postgresql
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    repoURL: oci://registry-1.docker.io/bitnamicharts
+    chart: postgresql
+    targetRevision: 16.5.0
+    helm:
+      releaseName: hive-postgresql
+      valuesObject:
+        image:
+          repository: bitnamilegacy/postgresql
+        volumePermissions:
+          enabled: false
+          image:
+            repository: bitnamilegacy/os-shell
+          securityContext:
+            runAsUser: auto
+        metrics:
+          image:
+            repository: bitnamilegacy/postgres-exporter
+        global:
+          security:
+            allowInsecureImages: true
+        auth:
+          username: hive
+          password: hive  # change for production
+          database: hive
+        primary:
+          extendedConfiguration: |
+            password_encryption=md5
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

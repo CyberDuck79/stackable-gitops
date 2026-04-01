@@ -1,0 +1,34 @@
+---
+# Root "App of Apps" — bootstraps all other ArgoCD Applications.
+#
+# Apply this once after ArgoCD is installed:
+#   kubectl apply -f argocd/apps/app-of-apps.yaml
+#
+# ArgoCD will then sync all Application manifests found in argocd/apps/
+# in dependency order (controlled by sync-wave annotations on each child app).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: data-platform
+
+  source:
+    # ⚠ Replace with your actual fork/clone URL
+    repoURL: https://github.com/CyberDuck79/stackable-gitops.git
+    targetRevision: HEAD
+    path: argocd/apps
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

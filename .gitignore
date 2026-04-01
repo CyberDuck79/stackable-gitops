@@ -1,0 +1,8 @@
+# Local secret templates — commit the README but never the actual Secret YAMLs
+secrets-templates/*.yaml
+
+# kubeseal cert
+tls.crt
+
+# OS artifacts
+.DS_Store

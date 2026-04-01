@@ -1,0 +1,62 @@
+---
+# AirflowCluster — deploys Apache Airflow with Celery executors.
+# Dependencies: airflow-postgresql, airflow-redis (both in data-platform ns).
+apiVersion: airflow.stackable.tech/v1alpha1
+kind: AirflowCluster
+metadata:
+  name: airflow
+  namespace: data-platform
+spec:
+  image:
+    productVersion: "3.1.6"
+    pullPolicy: IfNotPresent
+  clusterConfig:
+    loadExamples: false
+    exposeConfig: false
+    credentialsSecret: airflow-credentials
+  webservers:
+    roleConfig:
+      listenerClass: external-unstable
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu:
+              min: "200m"
+              max: "1000m"
+            memory:
+              limit: "1Gi"
+  celeryExecutors:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu:
+              min: "200m"
+              max: "1000m"
+            memory:
+              limit: "1Gi"
+  schedulers:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu:
+              min: "200m"
+              max: "500m"
+            memory:
+              limit: "512Mi"
+  dagProcessors:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu:
+              min: "100m"
+              max: "500m"
+            memory:
+              limit: "512Mi"

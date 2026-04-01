@@ -1,0 +1,34 @@
+---
+# ArgoCD Project scoping all data platform applications.
+# Allows deploying to the local cluster and to the specific namespaces used
+# by this stack.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: data-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Stackable Data Platform
+
+  sourceRepos:
+    - '*'  # allows OCI sources and any Git repo
+
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: sealed-secrets
+      server: https://kubernetes.default.svc
+    - namespace: stackable-operators
+      server: https://kubernetes.default.svc
+    - namespace: data-platform
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

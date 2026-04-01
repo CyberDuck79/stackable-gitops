@@ -1,0 +1,15 @@
+---
+# S3Connection — tells the Hive operator how to reach MinIO.
+# The credentials are provided via the SecretClass 'hive-s3-secret-class'
+# which maps to the SealedSecret 'hive-minio-credentials'.
+apiVersion: s3.stackable.tech/v1alpha1
+kind: S3Connection
+metadata:
+  name: minio
+  namespace: data-platform
+spec:
+  host: minio.data-platform.svc.cluster.local
+  port: 9000
+  accessStyle: Path
+  credentials:
+    secretClass: hive-s3-secret-class
