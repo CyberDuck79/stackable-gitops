@@ -26,6 +26,10 @@ spec:
     roleGroups:
       default:
         replicas: 1
+        envOverrides:
+          AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+          AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "s3://airflow-logs/task-logs"
+          AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "minio_default"
         config:
           resources:
             cpu:
@@ -33,12 +37,22 @@ spec:
               max: "1000m"
             memory:
               limit: "1Gi"
+          podOverrides:
+            spec:
+              containers:
+                - name: airflow
+                  envFrom:
+                    - secretRef:
+                        name: airflow-connections
   celeryExecutors:
     roleGroups:
       default:
         replicas: 1
         envOverrides:
           AIRFLOW__CELERY__WORKER_CONCURRENCY: "4"
+          AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+          AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "s3://airflow-logs/task-logs"
+          AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "minio_default"
         config:
           resources:
             cpu:
@@ -46,10 +60,21 @@ spec:
               max: "1000m"
             memory:
               limit: "2Gi"
+          podOverrides:
+            spec:
+              containers:
+                - name: airflow
+                  envFrom:
+                    - secretRef:
+                        name: airflow-connections
   schedulers:
     roleGroups:
       default:
         replicas: 1
+        envOverrides:
+          AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+          AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "s3://airflow-logs/task-logs"
+          AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "minio_default"
         config:
           resources:
             cpu:
@@ -57,6 +82,13 @@ spec:
               max: "500m"
             memory:
               limit: "512Mi"
+          podOverrides:
+            spec:
+              containers:
+                - name: airflow
+                  envFrom:
+                    - secretRef:
+                        name: airflow-connections
   dagProcessors:
     roleGroups:
       default:

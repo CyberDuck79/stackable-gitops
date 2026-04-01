@@ -5,5 +5,6 @@ kind: Kustomization
 namespace: data-platform
 
 resources:
+  - connections-sealed-secret.yaml
   - credentials-sealed-secret.yaml
   - airflow-cluster.yaml

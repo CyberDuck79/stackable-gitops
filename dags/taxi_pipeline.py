@@ -27,6 +27,7 @@ import trino
 import urllib3
 from botocore.config import Config
 
+from airflow.hooks.base import BaseHook
 from airflow.sdk import dag, task
 
 
@@ -47,6 +48,8 @@ def taxi_pipeline():
     def generate_and_upload() -> None:
         """Generate 5 000 synthetic taxi rows and upload as Parquet to MinIO."""
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        conn = BaseHook.get_connection("minio_default")
+        extra = conn.extra_dejson
 
         random.seed(42)
         ZONES = [
@@ -90,11 +93,11 @@ def taxi_pipeline():
 
         s3 = boto3.client(
             "s3",
-            endpoint_url="https://minio.data-platform.svc.cluster.local:9000",
-            aws_access_key_id="hive",
-            aws_secret_access_key="hive-secret-key",
+            endpoint_url=extra["endpoint_url"],
+            aws_access_key_id=conn.login,
+            aws_secret_access_key=conn.password,
             config=Config(signature_version="s3v4"),
-            verify=False,
+            verify=extra.get("verify", True),
         )
         s3.put_object(
             Bucket="hive",
