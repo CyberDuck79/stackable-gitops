@@ -14,7 +14,8 @@ spec:
   project: data-platform
 
   source:
-    repoURL: oci://oci.stackable.tech/sdp-charts/hive-operator
+    repoURL: oci://oci.stackable.tech/sdp-charts
+    chart: hive-operator
     targetRevision: 26.3.0
 
   destination:

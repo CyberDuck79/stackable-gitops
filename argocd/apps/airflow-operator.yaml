@@ -14,7 +14,8 @@ spec:
   project: data-platform
 
   source:
-    repoURL: oci://oci.stackable.tech/sdp-charts/airflow-operator
+    repoURL: oci://oci.stackable.tech/sdp-charts
+    chart: airflow-operator
     targetRevision: 26.3.0
 
   destination:
