@@ -31,13 +31,15 @@ spec:
     roleGroups:
       default:
         replicas: 1
+        envOverrides:
+          AIRFLOW__CELERY__WORKER_CONCURRENCY: "4"
         config:
           resources:
             cpu:
               min: "200m"
               max: "1000m"
             memory:
-              limit: "1Gi"
+              limit: "2Gi"
   schedulers:
     roleGroups:
       default:
