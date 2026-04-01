@@ -35,6 +35,7 @@ def taxi_pipeline():
     @task.virtualenv(
         requirements=["boto3", "pandas", "pyarrow"],
         system_site_packages=False,
+        python="/stackable/app/bin/python3",
     )
     def generate_and_upload() -> None:
         """Generate 5 000 synthetic taxi rows and upload as Parquet to MinIO."""
@@ -107,6 +108,7 @@ def taxi_pipeline():
     @task.virtualenv(
         requirements=["trino"],
         system_site_packages=False,
+        python="/stackable/app/bin/python3",
     )
     def create_hive_tables() -> None:
         """Create Hive schemas, external raw table, and aggregated mart table."""
