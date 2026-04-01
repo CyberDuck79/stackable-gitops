@@ -11,12 +11,23 @@ Trigger this DAG manually once after the platform is fully deployed.
 Pipeline tasks:
   generate_and_upload  — 5 000 synthetic rows → s3://hive/raw/taxi/
   create_hive_tables   — hive.raw.taxi_trips (EXTERNAL) + hive.mart.taxi_summary
+
+Note: boto3, pandas, pyarrow and trino are all pre-installed in the
+Stackable Airflow 3.1.6 worker image — no virtualenv required.
 """
 from __future__ import annotations
 
-from datetime import datetime
+import io
+import random
+from datetime import datetime, timedelta
 
-from airflow.decorators import dag, task
+import boto3
+import pandas as pd
+import trino
+import urllib3
+from botocore.config import Config
+
+from airflow.sdk import dag, task
 
 
 @dag(
@@ -32,22 +43,9 @@ from airflow.decorators import dag, task
 )
 def taxi_pipeline():
 
-    @task.virtualenv(
-        requirements=["boto3", "pandas", "pyarrow"],
-        system_site_packages=False,
-        python="/stackable/app/bin/python3",
-    )
+    @task
     def generate_and_upload() -> None:
         """Generate 5 000 synthetic taxi rows and upload as Parquet to MinIO."""
-        import io
-        import random
-        from datetime import datetime, timedelta
-
-        import boto3
-        import pandas as pd
-        import urllib3
-        from botocore.config import Config
-
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         random.seed(42)
@@ -105,14 +103,9 @@ def taxi_pipeline():
         )
         print("Uploaded 5 000 rows → s3://hive/raw/taxi/yellow_tripdata_sample.parquet")
 
-    @task.virtualenv(
-        requirements=["trino"],
-        system_site_packages=False,
-        python="/stackable/app/bin/python3",
-    )
+    @task
     def create_hive_tables() -> None:
         """Create Hive schemas, external raw table, and aggregated mart table."""
-        import trino
 
         conn = trino.dbapi.connect(
             host="trino-coordinator.data-platform.svc.cluster.local",
