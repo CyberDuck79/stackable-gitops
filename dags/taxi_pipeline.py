@@ -158,6 +158,7 @@ ORDER BY trip_count DESC""",
             label = stmt.strip()[:60].replace("\n", " ")
             print(f"  → {label}…")
             cur.execute(stmt)
+            cur.fetchall()
 
         cur.execute("SELECT COUNT(*) FROM hive.mart.taxi_summary")
         print(f"hive.mart.taxi_summary ready — {cur.fetchone()[0]} rows")
