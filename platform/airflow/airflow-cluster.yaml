@@ -37,13 +37,13 @@ spec:
               max: "1000m"
             memory:
               limit: "1Gi"
-          podOverrides:
-            spec:
-              containers:
-                - name: airflow
-                  envFrom:
-                    - secretRef:
-                        name: airflow-connections
+        podOverrides:
+          spec:
+            containers:
+              - name: airflow
+                envFrom:
+                  - secretRef:
+                      name: airflow-connections
   celeryExecutors:
     roleGroups:
       default:
@@ -60,13 +60,13 @@ spec:
               max: "1000m"
             memory:
               limit: "2Gi"
-          podOverrides:
-            spec:
-              containers:
-                - name: airflow
-                  envFrom:
-                    - secretRef:
-                        name: airflow-connections
+        podOverrides:
+          spec:
+            containers:
+              - name: airflow
+                envFrom:
+                  - secretRef:
+                      name: airflow-connections
   schedulers:
     roleGroups:
       default:
@@ -82,13 +82,13 @@ spec:
               max: "500m"
             memory:
               limit: "512Mi"
-          podOverrides:
-            spec:
-              containers:
-                - name: airflow
-                  envFrom:
-                    - secretRef:
-                        name: airflow-connections
+        podOverrides:
+          spec:
+            containers:
+              - name: airflow
+                envFrom:
+                  - secretRef:
+                      name: airflow-connections
   dagProcessors:
     roleGroups:
       default:
