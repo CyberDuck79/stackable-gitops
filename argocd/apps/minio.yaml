@@ -45,6 +45,9 @@ spec:
         consoleService:
           type: NodePort
           nodePort: null
+        tls:
+          enabled: true
+          certSecret: minio-tls
 
   destination:
     server: https://kubernetes.default.svc

@@ -6,6 +6,7 @@ namespace: data-platform
 
 resources:
   - secret-class.yaml
+  - minio-tls-secretclass.yaml
   - minio-sealed-secret.yaml
   - db-sealed-secret.yaml
   - s3-connection.yaml
