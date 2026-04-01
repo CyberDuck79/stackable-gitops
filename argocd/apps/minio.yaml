@@ -41,10 +41,10 @@ spec:
             policy: readwrite
         service:
           type: NodePort
-          nodePort: null
+          nodePort: 32000
         consoleService:
           type: NodePort
-          nodePort: null
+          nodePort: 32001
         tls:
           enabled: true
           certSecret: minio-tls

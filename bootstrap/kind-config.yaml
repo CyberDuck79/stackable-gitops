@@ -16,13 +16,36 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraPortMappings:
-      # Expose ArgoCD UI
+      # ArgoCD UI
       - containerPort: 30080
         hostPort: 30080
         protocol: TCP
-      # Expose ArgoCD gRPC (argocd CLI)
+      # ArgoCD gRPC (argocd CLI)
       - containerPort: 30443
         hostPort: 30443
+        protocol: TCP
+      # Airflow webserver — NodePort auto-assigned by Stackable operator.
+      # If the port changes after cluster recreation, update this value to match
+      # `kubectl -n data-platform get svc airflow-webserver -o jsonpath='{.spec.ports[0].nodePort}'`
+      # then recreate the cluster again.
+      - containerPort: 31800
+        hostPort: 31800
+        protocol: TCP
+      # MinIO S3 API — pinned to 32000 in argocd/apps/minio.yaml
+      - containerPort: 32000
+        hostPort: 32000
+        protocol: TCP
+      # MinIO console — pinned to 32001 in argocd/apps/minio.yaml
+      - containerPort: 32001
+        hostPort: 32001
+        protocol: TCP
+      # Superset — NodePort auto-assigned by Stackable operator (see note above)
+      - containerPort: 32600
+        hostPort: 32600
+        protocol: TCP
+      # Trino coordinator HTTPS — NodePort auto-assigned by Stackable operator (see note above)
+      - containerPort: 30900
+        hostPort: 30900
         protocol: TCP
 
   - role: worker
