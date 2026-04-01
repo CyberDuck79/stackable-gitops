@@ -249,8 +249,10 @@ In Superset: **Settings → Database Connections → + Database**
 - Database: `Trino`
 - SQLAlchemy URI:
   ```
-  trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive?verify=false
+  trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive?http_scheme=https&verify=false
   ```
+
+  > `http_scheme=https` is required — the trino SQLAlchemy dialect defaults to HTTP, which causes a TLS handshake error on port 8443.
 
 ### Starting port-forwards
 
