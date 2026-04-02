@@ -203,6 +203,7 @@ data:
                 f"Dashboard '{DASHBOARD_TITLE}' already exists "
                 f"(id={existing_dash['id']}), skipping."
             )
+            dash_id = existing_dash["id"]
         else:
             position_json = {
                 "DASHBOARD_VERSION_KEY": "v2",
@@ -255,7 +256,20 @@ data:
                 "published": True,
                 "position_json": json.dumps(position_json),
             }, token=token, csrf=csrf)
-            print(f"Created dashboard '{DASHBOARD_TITLE}' (id={resp['id']}).")
+            dash_id = resp["id"]
+            print(f"Created dashboard '{DASHBOARD_TITLE}' (id={dash_id}).")
+
+        # Associate charts with the dashboard.
+        # In Superset 6 the chart→dashboard link is set via PUT /chart/{id}
+        # with {"dashboards": [dash_id]}.  position_json alone is not enough.
+        chart_ids = [kpi_id, pie_id, bar_id, table_id]
+        for cid in chart_ids:
+            r = call("PUT", f"/chart/{cid}", {"dashboards": [dash_id]},
+                     token=token, csrf=csrf)
+            linked = r.get("result", {}).get("dashboards", [])
+            if dash_id not in linked:
+                print(f"WARNING: chart {cid} did not link to dashboard {dash_id}")
+        print(f"Charts {chart_ids} linked to dashboard {dash_id}.")
 
         print("Superset initialization complete.")
 
