@@ -1,9 +1,6 @@
 ---
-# Superset init — registers the Trino database connection and, if the
-# taxi_pipeline DAG has already been run, also creates the taxi_summary dataset.
-#
-# This is an ArgoCD PostSync hook: it runs automatically after each sync of the
-# 'superset' app and is deleted on success. It is fully idempotent.
+# Superset init — registers the Trino database connection, taxi_summary dataset,
+# four charts, and a dashboard. Runs as an ArgoCD PostSync hook; fully idempotent.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,8 +13,9 @@ data:
     Idempotent Superset seed:
       1. Wait for Superset to be healthy.
       2. Create the Trino database connection (skip if already present).
-      3. Attempt to register the taxi_summary dataset (warns and continues
-         if the table does not exist yet — run the taxi_pipeline DAG first).
+      3. Register the taxi_summary dataset (warns and continues if missing).
+      4. Create four charts on taxi_summary.
+      5. Create the NYC Taxi Summary dashboard with those charts.
     """
     import http.cookiejar
     import json
@@ -30,7 +28,8 @@ data:
     TRINO_URI = (
         "trino://admin@trino-coordinator.data-platform.svc.cluster.local:8443/hive"
     )
-    DB_NAME = "Trino – Hive"
+    DB_NAME = "Trino \u2013 Hive"
+    DASHBOARD_TITLE = "NYC Taxi Summary"
 
     # Session-aware opener (carries cookies across requests, required for CSRF)
     _jar = http.cookiejar.CookieJar()
@@ -61,10 +60,39 @@ data:
                 print("Superset is healthy.")
                 return
             except Exception as exc:
-                print(f"[{attempt}/{retries}] Waiting for Superset… ({exc})")
+                print(f"[{attempt}/{retries}] Waiting for Superset\u2026 ({exc})")
                 time.sleep(delay)
         print("ERROR: Superset did not become ready.", file=sys.stderr)
         sys.exit(1)
+
+
+    def metric(col, agg, label=None):
+        return {
+            "expressionType": "SIMPLE",
+            "column": {"column_name": col},
+            "aggregate": agg,
+            "label": label or f"{agg}({col})",
+        }
+
+
+    def ensure_chart(token, csrf, name, viz_type, ds_id, params):
+        charts = call("GET", "/chart/?q=(page_size:100)", token=token)["result"]
+        existing = next((c for c in charts if c["slice_name"] == name), None)
+        if existing:
+            print(f"Chart '{name}' already exists (id={existing['id']}), skipping.")
+            return existing["id"]
+        params["viz_type"] = viz_type
+        params["datasource"] = f"{ds_id}__table"
+        resp = call("POST", "/chart/", {
+            "slice_name": name,
+            "viz_type": viz_type,
+            "datasource_id": ds_id,
+            "datasource_type": "table",
+            "params": json.dumps(params),
+        }, token=token, csrf=csrf)
+        cid = resp["id"]
+        print(f"Created chart '{name}' (id={cid}).")
+        return cid
 
 
     def main():
@@ -83,7 +111,7 @@ data:
         # Fetch CSRF token (required for state-changing API calls)
         csrf = call("GET", "/security/csrf_token/", token=token)["result"]
 
-        # Database connection (idempotent)
+        # ── Database ──────────────────────────────────────────────────────────
         dbs = call("GET", "/database/?q=(page_size:100)", token=token)["result"]
         existing = next((d for d in dbs if d["database_name"] == DB_NAME), None)
         if existing:
@@ -103,11 +131,12 @@ data:
             db_id = resp["id"]
             print(f"Created database '{DB_NAME}' (id={db_id}).")
 
-        # taxi_summary dataset (idempotent — skips gracefully if table missing)
+        # ── Dataset ───────────────────────────────────────────────────────────
         datasets = call("GET", "/dataset/?q=(page_size:100)", token=token)["result"]
         ds = next((d for d in datasets if d["table_name"] == "taxi_summary"), None)
         if ds:
-            print(f"Dataset 'taxi_summary' already exists (id={ds['id']}), skipping.")
+            ds_id = ds["id"]
+            print(f"Dataset 'taxi_summary' already exists (id={ds_id}), skipping.")
         else:
             try:
                 resp = call("POST", "/dataset/", {
@@ -115,13 +144,118 @@ data:
                     "schema": "mart",
                     "table_name": "taxi_summary",
                 }, token=token, csrf=csrf)
-                print(f"Created dataset 'taxi_summary' (id={resp['id']}).")
+                ds_id = resp["id"]
+                print(f"Created dataset 'taxi_summary' (id={ds_id}).")
             except RuntimeError as exc:
                 print(
-                    f"WARNING: Could not register dataset — "
+                    f"WARNING: Could not register dataset \u2014 "
                     f"the taxi_pipeline DAG may not have run yet.\n  {exc}\n"
                     "Re-sync the 'superset' app in ArgoCD after running the DAG."
                 )
+                print("Superset initialization complete (charts/dashboard skipped).")
+                return
+
+        # ── Charts ────────────────────────────────────────────────────────────
+        no_filter = {"adhoc_filters": [], "time_range": "No filter"}
+
+        kpi_id = ensure_chart(token, csrf, "Total Taxi Trips", "big_number_total", ds_id, {
+            **no_filter,
+            "metric": metric("trip_count", "SUM", "Total Trips"),
+            "subheader": "all time",
+        })
+
+        pie_id = ensure_chart(token, csrf, "Trips by Pickup Zone", "echarts_pie", ds_id, {
+            **no_filter,
+            "groupby": ["pickup_zone"],
+            "metric": metric("trip_count", "SUM", "Trips"),
+            "show_legend": True,
+            "label_type": "key_percent",
+        })
+
+        bar_id = ensure_chart(token, csrf, "Daily Trip Volume", "echarts_timeseries_bar", ds_id, {
+            **no_filter,
+            "x_axis": "trip_date",
+            "metrics": [metric("trip_count", "SUM", "Total Trips")],
+            "groupby": [],
+            "time_grain_sqla": "P1D",
+        })
+
+        table_id = ensure_chart(token, csrf, "Zone Fare Summary", "table", ds_id, {
+            **no_filter,
+            "groupby": ["pickup_zone"],
+            "metrics": [
+                metric("trip_count", "SUM", "Total Trips"),
+                metric("avg_fare", "AVG", "Avg Fare ($)"),
+                metric("avg_distance", "AVG", "Avg Distance (mi)"),
+                metric("total_tips", "SUM", "Total Tips ($)"),
+            ],
+            "page_length": 25,
+            "include_search": True,
+        })
+
+        # ── Dashboard ─────────────────────────────────────────────────────────
+        dashboards = call("GET", "/dashboard/?q=(page_size:100)", token=token)["result"]
+        existing_dash = next(
+            (d for d in dashboards if d["dashboard_title"] == DASHBOARD_TITLE), None
+        )
+        if existing_dash:
+            print(
+                f"Dashboard '{DASHBOARD_TITLE}' already exists "
+                f"(id={existing_dash['id']}), skipping."
+            )
+        else:
+            position_json = {
+                "DASHBOARD_VERSION_KEY": "v2",
+                "ROOT_ID": {
+                    "type": "ROOT", "id": "ROOT_ID",
+                    "children": ["GRID_ID"], "meta": {},
+                },
+                "GRID_ID": {
+                    "type": "GRID", "id": "GRID_ID",
+                    "children": ["ROW-1", "ROW-2", "ROW-3"], "meta": {},
+                },
+                "ROW-1": {
+                    "type": "ROW", "id": "ROW-1",
+                    "children": ["CHART-kpi", "CHART-pie"],
+                    "meta": {"background": "BACKGROUND_TRANSPARENT"},
+                },
+                "CHART-kpi": {
+                    "type": "CHART", "id": "CHART-kpi", "children": [],
+                    "meta": {"width": 3, "height": 25, "chartId": kpi_id,
+                             "sliceName": "Total Taxi Trips"},
+                },
+                "CHART-pie": {
+                    "type": "CHART", "id": "CHART-pie", "children": [],
+                    "meta": {"width": 9, "height": 25, "chartId": pie_id,
+                             "sliceName": "Trips by Pickup Zone"},
+                },
+                "ROW-2": {
+                    "type": "ROW", "id": "ROW-2",
+                    "children": ["CHART-bar"],
+                    "meta": {"background": "BACKGROUND_TRANSPARENT"},
+                },
+                "CHART-bar": {
+                    "type": "CHART", "id": "CHART-bar", "children": [],
+                    "meta": {"width": 12, "height": 35, "chartId": bar_id,
+                             "sliceName": "Daily Trip Volume"},
+                },
+                "ROW-3": {
+                    "type": "ROW", "id": "ROW-3",
+                    "children": ["CHART-table"],
+                    "meta": {"background": "BACKGROUND_TRANSPARENT"},
+                },
+                "CHART-table": {
+                    "type": "CHART", "id": "CHART-table", "children": [],
+                    "meta": {"width": 12, "height": 40, "chartId": table_id,
+                             "sliceName": "Zone Fare Summary"},
+                },
+            }
+            resp = call("POST", "/dashboard/", {
+                "dashboard_title": DASHBOARD_TITLE,
+                "published": True,
+                "position_json": json.dumps(position_json),
+            }, token=token, csrf=csrf)
+            print(f"Created dashboard '{DASHBOARD_TITLE}' (id={resp['id']}).")
 
         print("Superset initialization complete.")
 
