@@ -164,12 +164,15 @@ data:
             "subheader": "all time",
         })
 
-        pie_id = ensure_chart(token, csrf, "Trips by Pickup Zone", "echarts_pie", ds_id, {
+        pie_id = ensure_chart(token, csrf, "Trips by Pickup Zone", "pie", ds_id, {
             **no_filter,
             "groupby": ["pickup_zone"],
             "metric": metric("trip_count", "SUM", "Trips"),
             "show_legend": True,
             "label_type": "key_percent",
+            "show_labels": True,
+            "show_labels_threshold": 5,
+            "donut": False,
         })
 
         bar_id = ensure_chart(token, csrf, "Daily Trip Volume", "echarts_timeseries_bar", ds_id, {
