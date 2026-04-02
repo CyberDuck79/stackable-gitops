@@ -19,6 +19,7 @@ data:
       3. Attempt to register the taxi_summary dataset (warns and continues
          if the table does not exist yet — run the taxi_pipeline DAG first).
     """
+    import http.cookiejar
     import json
     import sys
     import time
@@ -31,16 +32,22 @@ data:
     )
     DB_NAME = "Trino – Hive"
 
+    # Session-aware opener (carries cookies across requests, required for CSRF)
+    _jar = http.cookiejar.CookieJar()
+    _opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(_jar))
 
-    def call(method, path, body=None, token=None):
+
+    def call(method, path, body=None, token=None, csrf=None):
         url = f"{SUPERSET}/api/v1{path}"
         data = json.dumps(body).encode() if body is not None else None
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        if csrf:
+            headers["X-CSRFToken"] = csrf
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with _opener.open(req, timeout=30) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
@@ -73,6 +80,9 @@ data:
         token = resp["access_token"]
         print("Logged in.")
 
+        # Fetch CSRF token (required for state-changing API calls)
+        csrf = call("GET", "/security/csrf_token/", token=token)["result"]
+
         # Database connection (idempotent)
         dbs = call("GET", "/database/?q=(page_size:100)", token=token)["result"]
         existing = next((d for d in dbs if d["database_name"] == DB_NAME), None)
@@ -84,10 +94,12 @@ data:
                 "database_name": DB_NAME,
                 "sqlalchemy_uri": TRINO_URI,
                 "extra": json.dumps({
-                    "connect_args": {"http_scheme": "https", "verify": False},
+                    "engine_params": {
+                        "connect_args": {"http_scheme": "https", "verify": False},
+                    },
                 }),
                 "expose_in_sqllab": True,
-            }, token=token)
+            }, token=token, csrf=csrf)
             db_id = resp["id"]
             print(f"Created database '{DB_NAME}' (id={db_id}).")
 
@@ -102,7 +114,7 @@ data:
                     "database": db_id,
                     "schema": "mart",
                     "table_name": "taxi_summary",
-                }, token=token)
+                }, token=token, csrf=csrf)
                 print(f"Created dataset 'taxi_summary' (id={resp['id']}).")
             except RuntimeError as exc:
                 print(
