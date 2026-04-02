@@ -35,7 +35,9 @@ All secrets are managed with [Sealed Secrets](https://github.com/bitnami-labs/se
 │   └── generate-sealed-secrets.sh
 └── docs/
     ├── 01-local-cluster-setup.md
-    └── 02-data-platform.md
+    ├── 02-data-platform.md
+    ├── 03-taxi-example.md
+    └── 04-going-further.md
 ```
 
 ## Getting started
@@ -53,6 +55,19 @@ Follow **[docs/02-data-platform.md](docs/02-data-platform.md)** to:
 - Generate your sealed secrets
 - Configure this repository as an ArgoCD source
 - Deploy all platform components via the App of Apps pattern
+
+### Step 3 — Run the NYC Taxi example
+
+Follow **[docs/03-taxi-example.md](docs/03-taxi-example.md)** to:
+- Trigger the `taxi_pipeline` DAG in Airflow
+- Verify the data in Trino
+- View the auto-generated NYC Taxi Summary dashboard in Superset
+
+### Step 4 — Going further
+
+Follow **[docs/04-going-further.md](docs/04-going-further.md)** to:
+- Understand Stackable concepts (operators, stacklets, roles, role groups)
+- Add a new stacklet to the platform following the established GitOps pattern
 
 ## Secret management workflow
 
